@@ -201,7 +201,7 @@
 </p>
 {#if needSave}
 	<div
-		transition:slide
+		transition:slide|global
 		class="my-3 rounded shadow bg-yellow-100 p-5 border-dashed border-2 border-yellow-400"
 	>
 		<p class="m-0 text-yellow-800">
@@ -223,7 +223,7 @@
 {/if}
 {#if !loading && newCategories.length > 0}
 	<p
-		transition:slide
+		transition:slide|global
 		class="my-3 rounded shadow bg-green-100 p-5 border-dashed border-2 border-green-400"
 	>
 		You have new folders in your repository. You can add them to the editor to begin editing icon
@@ -241,7 +241,7 @@
 	<p>Loading...</p>
 {:else if iconData.meta.length === 0 && iconData.files.length === 0}
 	<p
-		transition:slide
+		transition:slide|global
 		class="my-3 rounded shadow bg-yellow-100 p-5 border-dashed border-2 border-yellow-400"
 	>
 		Heads up! You don't have any categories. To begin, add a folder with some SVG icons to the <span

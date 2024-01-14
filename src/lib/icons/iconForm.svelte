@@ -88,7 +88,7 @@
 		</button>
 	</div>
 	{#if showTNPCreds}
-		<div class="card bg-slate-100" transition:slide>
+		<div class="card bg-slate-100" transition:slide|global>
 			<label class="form-label">
 				<span> TNP API Key </span>
 				<input
