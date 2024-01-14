@@ -1,7 +1,6 @@
 import { json as json$1 } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import type { Category, Icon } from '$lib/icons';
-import glob from 'glob';
 import path from 'path';
 import fs from 'fs';
 // import icons from '../../../dist/meta.json';
@@ -12,14 +11,14 @@ import 'dotenv/config';
 const dirname = process.env.ICONS_DIR;
 export const prerender = false;
 
-if (!dirname) {
-	throw new Error('ICONS_DIR env variable is not set! Please do that.');
-}
-
 /**
  * @type {import('@sveltejs/kit').RequestHandler}
  */
 export async function GET() {
+	if (!dirname) {
+		throw new Error('ICONS_DIR env variable is not set! Please do that.');
+	}
+
 	// Attempt to import meta files
 	const metaFiles = (await fg('**/meta.json', { onlyFiles: false, deep: 2, cwd: dirname })).sort();
 
@@ -33,10 +32,10 @@ export async function GET() {
 	});
 
 	// Get the real folder structure for the icons
-	const categories = glob.sync(path.join(dirname, '*/'));
+	const categories = fg.sync(path.join(dirname, '*/'));
 	const iconsByCategory = categories.map((foundPath) => {
 		const category = path.basename(foundPath);
-		const icons = glob.sync(`${category}/*.svg`, { cwd: dirname });
+		const icons = fg.sync(`${category}/*.svg`, { cwd: dirname });
 		return { category, icons };
 	});
 
