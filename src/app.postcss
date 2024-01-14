@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.card {
+	@apply shadow rounded  p-3 px-5 my-3;
+	&.iconHeader {
+		@apply mt-10 sticky top-10;
+		.icon {
+			@apply w-20 mx-auto p-5 rounded-full shadow -mt-10 bg-gray-900;
+			img {
+				@apply invert;
+				width: 100%;
+				height: 100%;
+				object-fit: contain;
+			}
+		}
+	}
+}
+
+button.btn {
+	@apply rounded ring-2 ring-slate-900 text-black px-2 py-1 my-3 transition text-sm mx-auto block font-semibold select-none;
+	&.inline {
+		@apply inline-block my-0;
+	}
+	&:hover {
+		@apply opacity-60;
+	}
+	&:active,
+	&.active {
+		@apply ring-1 ring-slate-200;
+	}
+	&.danger {
+		@apply ring-red-800 text-red-800;
+	}
+}
+
+.btn-group {
+	@apply m-auto flex justify-center gap-2;
+
+	&.inline {
+		@apply inline-flex m-0;
+		.btn {
+			@apply inline-block my-0;
+		}
+	}
+
+	button {
+		@apply inline-block mx-0;
+	}
+	&.btn-group-tight,
+	.btn-group-tight {
+		@apply border-2 border-slate-900 rounded my-auto inline-flex;
+		button {
+			@apply mx-0 my-0 rounded-none border-r-2 border-slate-900 ring-0;
+			&:last-child {
+				@apply border-r-0;
+			}
+		}
+	}
+}
+
+.disabled {
+	@apply opacity-50 transition-opacity;
+}
+
+.form-label {
+	@apply mb-5 block;
+	span {
+		@apply block text-gray-700;
+	}
+	input {
+		@apply form-input;
+		@apply mt-1 block w-full rounded-md border-gray-300 shadow-sm;
+		&:focus {
+			@apply border-indigo-300 ring ring-indigo-200 ring-opacity-50;
+		}
+	}
+}

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<g fill="#952323">
+  <path  d="M4 19V7H16V19C16 20.1 15.1 21 14 21H6C4.9 21 4 20.1 4 19M6 9V19H14V9H6M13.5 4H17V6H3V4H6.5L7.5 3H12.5L13.5 4M19 17V15H21V17H19M19 13V7H21V13H19Z"/>
+  <text style="fill: white; font-family: Arial, sans-serif; font-size: 0.9px; font-weight: 700; paint-order: stroke; stroke: #952323; stroke-linecap: round; stroke-miterlimit: 3; stroke-width: 0.3; text-anchor: middle; white-space: pre;" transform="matrix(5.154241, 0, 0, 5.154241, -0.805228, -34.994503)"><tspan x="2.482" y="8.985">ICON</tspan><tspan x="2.482" dy="1em">​</tspan><tspan>DELETED</tspan></text>
+</g>
+</svg>
