@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { expoInOut } from 'svelte/easing';
 	import { slide, fade } from 'svelte/transition';
-	import { browser } from '$app/env';
+	import { browser } from '$app/environment';
 	import { base, assets } from '$app/paths';
 	import { nanoid } from 'nanoid';
 

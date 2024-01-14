@@ -1,31 +1,31 @@
-import { dev } from '$app/env';
+import { dev } from '$app/environment';
 import { base } from '$app/paths';
 
 export interface Icon {
-    id: string;
-    url: string;
-    title?: string;
-    width: number;
-    height: number;
-    tnp_id: string;
-    tags?: string[];
-    term?: string;
-    collections?: string[];
+	id: string;
+	url: string;
+	title?: string;
+	width: number;
+	height: number;
+	tnp_id: string;
+	tags?: string[];
+	term?: string;
+	collections?: string[];
 }
 
 export interface Category {
-    name: string;
-    icons: Icon[];
+	name: string;
+	icons: Icon[];
 }
 
 export interface foundCategory {
-    category: string;
-    icons: string[];
+	category: string;
+	icons: string[];
 }
 
 export interface iconMeta {
-    meta: Category[];
-    files: foundCategory[];
+	meta: Category[];
+	files: foundCategory[];
 }
 
 export const getIconClass = (url: string): string => {
@@ -38,6 +38,6 @@ export const getIconClass = (url: string): string => {
 	return `${parts.join('--')}`;
 };
 
-export const getIconUrl = (icon: Icon) : string => {
-    return `${base}/icon/${icon.url}`;
-}
+export const getIconUrl = (icon: Icon): string => {
+	return `${base}/icon/${icon.url}`;
+};
