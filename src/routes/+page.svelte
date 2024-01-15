@@ -6,12 +6,21 @@
 	import { base, assets } from '$app/paths';
 	import { nanoid } from 'nanoid';
 
-	import type { Icon, Category, foundCategory, iconMeta } from '$lib/icons';
+	import {
+		type Icon,
+		type Category,
+		type foundCategory,
+		type iconMeta,
+		RichCategory,
+		type RichIcon,
+		type RichFile
+	} from '$lib/icons';
 	import { getIconUrl } from '$lib/icons';
 	import nounFetch from '$lib/icons/nounfetch';
 	import IconList from '$lib/icons/iconList.svelte';
 	import IconForm from '$lib/icons/iconForm.svelte';
 	import { chosenCategory, chosenIcon, nounProjectAuth } from '../store';
+	import { IconFilesystem, getFilesRecursively } from '$lib/icons/filesystem';
 
 	// Custom slide transition
 	function expandPanel(node: Element, { delay = 0, duration = 200, easing = expoInOut }) {
@@ -25,18 +34,15 @@
 		};
 	}
 
-	let iconData: iconMeta;
-	let iconDiffs: {
-		newIcons: Icon[];
-		removedIcons: Icon[];
-	}[] = [];
+	let fs: IconFilesystem;
+	let iconData: RichCategory[] = [];
 	let newCategories: foundCategory[] = [];
 	let loading = true;
 
-	$: chosenIconData = iconData?.meta[$chosenCategory]?.icons.find((i) => i.id == $chosenIcon);
-	$: iconNotDeleted = !iconDiffs[$chosenCategory]?.removedIcons.find(
-		(i) => i.id == chosenIconData?.id
-	);
+	$: chosenIconData = iconData
+		? iconData[$chosenCategory]?.icons.find((i) => i.id == $chosenIcon)
+		: undefined;
+	$: iconNotDeleted = !iconData[$chosenCategory]?.removed.find((i) => i.id == chosenIconData?.id);
 
 	const updateIcons = (e: CustomEvent) => {
 		const { icons } = e.detail;
@@ -45,10 +51,11 @@
 	let existingTags = [] as string[];
 	let existingCollections = [] as string[];
 	const updateTagData = () => {
+		if (!iconData) return;
 		existingTags = [
 			// Only unique values
 			...new Set(
-				iconData.meta.reduce(
+				iconData.reduce(
 					(acc, cat) =>
 						// Step through categories, reducing each icon to a list of tags and bunching together
 						acc.concat(
@@ -62,7 +69,7 @@
 		existingCollections = [
 			// Only unique values
 			...new Set(
-				iconData.meta.reduce(
+				iconData.reduce(
 					(acc, cat) =>
 						// Step through categories, reducing each icon to a list of tags and bunching together
 						acc.concat(
@@ -77,34 +84,65 @@
 		];
 	};
 
-	const addIcon = (e: CustomEvent) => {
+	const addIcon = (e: CustomEvent<RichIcon>) => {
 		console.log(e.detail);
 		console.log($chosenCategory);
-		console.log(iconData.meta[$chosenCategory]);
-		const icon = e.detail as Icon;
+		if (!iconData) return;
+		console.log(iconData[$chosenCategory]);
+		const icon = e.detail;
 		$chosenIcon = icon.id;
 		// Add icon to meta
-		iconData.meta[$chosenCategory].icons = [...iconData.meta[$chosenCategory].icons, icon];
-		// console.log(iconData.meta[$chosenCategory]);
-		// Remove icon from found files
-		const foundCat = iconData.files.findIndex(
-			(c) => c.category === iconData.meta[$chosenCategory].name
-		);
-		if (foundCat) {
-			iconData.files[foundCat].icons = iconData.files[foundCat].icons.filter((i) => i !== icon.id);
-		}
+		iconData[$chosenCategory].addIcon(icon);
 		// Reload diffs
-		buildDiffs();
-		needSave = true;
+		// buildDiffs();
+		// needSave = true;
 	};
 
-	const addCategory = (category: foundCategory) => {
-		// console.log(e);
-		$chosenCategory = iconData.meta.length;
+	const addCategory = async (folder: FileSystemDirectoryHandle) => {
+		if (!iconData) return;
+		// Get icons in folder
+		let icons: RichFile[] = [];
+		for await (const entry of getFilesRecursively(folder)) icons.push(entry);
+		const richIcons = icons.map((i) => {
+			return {
+				id: nanoid(),
+				ligature: i.name.replace(/\.svg$/, ''),
+				name: i.name.replace(/\.svg$/, ''),
+				url: i.name,
+				width: 48,
+				height: 48,
+				tnp_id: '',
+				tags: [],
+				term: '',
+				collections: [],
+				file: i
+			} as RichIcon;
+		});
+
+		// Create meta file
+		const metaFile = await folder.getFileHandle('meta.json', { create: true }).then((file) => {
+			file.createWritable().then((writer) => {
+				writer.write(JSON.stringify({ category: folder.name, icons: [] }));
+				writer.close();
+			});
+			return file;
+		});
+
+		// Create category
+		const category = new RichCategory(metaFile, folder, {
+			name: folder.name,
+			icons: richIcons,
+			newIcons: [],
+			visible: true
+		});
+
+		category.save();
+
 		// Add category to meta
-		iconData.meta = [...iconData.meta, { name: category.category, icons: [] }];
+		iconData.push(category);
+		$chosenCategory = iconData.length;
 		// Reload diffs
-		buildDiffs();
+		// buildDiffs();
 		needSave = true;
 	};
 
@@ -118,80 +156,30 @@
 		};
 	}
 
-	const buildDiffs = () => {
-		iconDiffs = iconData.meta.map((metaCategory) => {
-			// Loop through the meta categories and find differences between it and the actual files
-			const foundCategory = iconData.files.find(({ category }) => category === metaCategory.name);
-			if (!foundCategory) {
-				return { newIcons: [], removedIcons: metaCategory.icons };
-			}
-			let newIcons = foundCategory.icons
-				.filter((iconUrl) => {
-					return !metaCategory.icons.find((i) => i.url == iconUrl);
-				})
-				.map((url) => {
-					let tnp_id = '';
-					const foundID = url.match(/noun[_-][\w\d_-]+[_-](\d+)/);
-					if (foundID && foundID[1]) {
-						tnp_id = foundID[1];
-					}
-					return <Icon>{
-						id: nanoid(),
-						width: 48,
-						height: 48,
-						tnp_id,
-						url,
-						tags: [],
-						collections: []
-					};
-				});
-			const removedIcons = metaCategory.icons.filter(({ url }) => {
-				return !foundCategory.icons.find((i) => i == url);
-			});
-			return { newIcons, removedIcons };
-		});
-		// Find new categories
-		newCategories = iconData.files.filter(({ category }) => {
-			return !iconData.meta.find((m) => m.name == category);
-		});
-	};
-
-	const loadData = async () => {
-		iconData = await fetch(`${base}/meta.json`).then((res) => {
-			if (!res.ok) {
-				throw new Error(res.statusText);
-			}
-			return res.json() as Promise<iconMeta>;
-		});
-
-		buildDiffs();
+	const loadData = async (handler: FileSystemDirectoryHandle | undefined = undefined) => {
+		if (!handler) {
+			fs = await IconFilesystem.getFilesystem();
+		} else {
+			fs = new IconFilesystem(handler);
+		}
+		iconData = await fs.categories;
+		newCategories = fs.foundCategories;
 		loading = false;
 
 		// Parse tag data
 		updateTagData();
 
 		// Fix chosen category if out of bounds
-		if ($chosenCategory > iconData.meta.length - 1) {
+		if ($chosenCategory > iconData.length - 1) {
 			chosenCategory.set(0);
 		}
+		console.log(fs, iconData, newCategories);
 	};
 
 	const saveData = async () => {
-		// const data = iconData.meta[chosenCategory];
-		// If we are running in dev mode, just save the data to the file. Otherwise, download it
-		const res = await fetch(`${base}/meta.json`, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(iconData.meta)
-		});
-		if (res.status == 200) {
-			needSave = false;
-		}
+		await fs.save();
+		needSave = false;
 	};
-
-	onMount(loadData);
 </script>
 
 <h1 class="text-3xl font-bold">Canvas Icons Editor</h1>
@@ -212,7 +200,7 @@
 					class="btn"
 					on:click={() => {
 						if (confirm('Are you sure you want to discard your changes?')) {
-							loadData();
+							loadData(fs.folderHandle);
 							needSave = false;
 						}
 					}}>Discard</button
@@ -231,15 +219,19 @@
 	</p>
 	<div class="btn-group flex flex-wrap">
 		{#each newCategories as newCategory}
-			<button class="btn inline-block" on:click={() => addCategory(newCategory)}
+			<button class="btn inline-block" on:click={() => addCategory(newCategory.folder)}
 				>Add "{newCategory.category}"</button
 			>
 		{/each}
 	</div>
 {/if}
 {#if loading}
-	<p>Loading...</p>
-{:else if iconData.meta.length === 0 && iconData.files.length === 0}
+	<button
+		on:click={() => {
+			loadData();
+		}}>Begin loading</button
+	>
+{:else if !iconData || iconData.length === 0}
 	<p
 		transition:slide|global
 		class="my-3 rounded shadow bg-yellow-100 p-5 border-dashed border-2 border-yellow-400"
@@ -250,7 +242,7 @@
 	</p>
 {:else}
 	<div class="select-category flex flex-wrap">
-		{#each iconData.meta as category, index}
+		{#each iconData as category, index}
 			<button
 				class={`rounded ${
 					$chosenCategory == index
@@ -267,54 +259,73 @@
 	<div class="flex">
 		<div class="icon-lists flex-grow-0 w-6/12 pr-5">
 			<div class="changes">
-				{#if iconDiffs[$chosenCategory]}
-					{#if iconDiffs[$chosenCategory].newIcons.length}
-						<h2 class="text-xl font-bold mt-3">
-							New Icons found:
-							<!-- svelte-ignore missing-declaration -->
-							<button
-								class="btn inline float-right"
-								on:click={async () => {
-									for (const icon of iconDiffs[$chosenCategory].newIcons) {
-										addIcon(new CustomEvent('click', { detail: icon }));
-									}
-								}}
-							>
-								Add All
-							</button>
-							<button
-								class="btn inline float-right"
-								on:click={async () => {
-									for (const icon of iconDiffs[$chosenCategory].newIcons) {
-										const importedIcon = await nounFetch(icon, $nounProjectAuth);
-										addIcon(new CustomEvent('click', { detail: importedIcon }));
-									}
-								}}
-							>
-								Add All + Load TNP
-							</button>
-						</h2>
-						<IconList icons={iconDiffs[$chosenCategory]?.newIcons} on:addIcon={addIcon} newIcons />
-					{/if}
-					<!-- {#if iconDiffs[chosenCategory].removedIcons.length}
+				{#if iconData[$chosenCategory].added.length}
+					<h2 class="text-xl font-bold mt-3">
+						New Icons found:
+						<!-- svelte-ignore missing-declaration -->
+						<button
+							class="btn inline float-right"
+							on:click={async () => {
+								for (const icon of iconData[$chosenCategory].newIcons) {
+									addIcon(
+										new CustomEvent('click', {
+											detail: {
+												id: nanoid(),
+												ligature: icon.name.replace(/\.svg$/, ''),
+												name: icon.name.replace(/\.svg$/, ''),
+												url: icon.name,
+												width: 48,
+												height: 48,
+												tnp_id: '',
+												tags: [],
+												term: '',
+												file: icon,
+												collections: []
+											}
+										})
+									);
+								}
+							}}
+						>
+							Add All
+						</button>
+						<button
+							class="btn inline float-right"
+							on:click={async () => {
+								for (const icon of iconData[$chosenCategory].newIcons) {
+									const importedIcon = await nounFetch(icon, $nounProjectAuth);
+									addIcon(new CustomEvent('click', { detail: importedIcon }));
+								}
+							}}
+						>
+							Add All + Load TNP
+						</button>
+					</h2>
+					<!-- <IconList
+						icons={iconData[$chosenCategory]?.newIcons.map((f) => ({ file: f }))}
+						on:addIcon={addIcon}
+						newIcons
+					/> -->
+				{/if}
+				<!-- {#if iconDiffs[chosenCategory].removedIcons.length}
 						<h2 class="text-xl font-bold mt-3">Deleted Icons found:</h2>
 						<IconList icons={iconDiffs[chosenCategory].removedIcons} deletedIcons />
 					{/if} -->
-				{/if}
 			</div>
 			<h2 class="text-xl font-bold mt-3">Existing Icons:</h2>
 			<!--  - Top matching icons -->
 			<!-- on:selectIcon -->
-			{#if iconData.meta[$chosenCategory]}
-				<IconList
-					bind:icons={iconData.meta[$chosenCategory].icons}
-					on:edit={(e) => {
-						needSave = true;
-						// Build diffs, just in case something was deleted
-						buildDiffs();
-					}}
-					on:addIcon={addIcon}
-				/>
+			{#if iconData[$chosenCategory]}
+				{#key $chosenCategory}
+					<IconList
+						bind:category={iconData[$chosenCategory]}
+						on:edit={({ detail }) => {
+							if (detail) iconData[$chosenCategory].icons = detail;
+							needSave = true;
+						}}
+						on:addIcon={addIcon}
+					/>
+				{/key}
 			{/if}
 		</div>
 		<div class="icon-editor w-6/12">
@@ -322,7 +333,9 @@
 				<!-- Show placeholder -->
 				<div class="icon aspect-square flex items-center justify-center select-none">
 					{#if $chosenIcon && chosenIconData && iconNotDeleted}
-						<img src={getIconUrl(chosenIconData)} alt={chosenIconData.title} />
+						{#await getIconUrl(chosenIconData) then src}
+							<img {src} alt={chosenIconData.title} />
+						{/await}
 					{:else}
 						<p class="text-white text-4xl font-thin">?</p>
 					{/if}
@@ -333,15 +346,16 @@
 						icon={chosenIconData}
 						{existingCollections}
 						{existingTags}
-						on:changed={() => {
+						on:changed={({ detail }) => {
 							needSave = true;
+							if (!detail) return;
+							const index = iconData[$chosenCategory]?.icons.findIndex((i) => i.id == $chosenIcon);
+							if (index) iconData[$chosenCategory].icons[index] = detail;
 						}}
 						on:deleteIcon={(e) => {
-							iconData.meta[$chosenCategory].icons = iconData.meta[$chosenCategory].icons.filter(
-								(i) => i.id !== e.detail.id
-							);
-							buildDiffs();
-							needSave = true;
+							iconData[$chosenCategory].removeIcon(e.detail.id);
+							// buildDiffs();
+							// needSave = true;
 						}}
 					/>
 				{:else}

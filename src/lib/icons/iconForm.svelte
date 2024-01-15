@@ -1,6 +1,6 @@
 <!-- @hmr:keep-all -->
 <script lang="ts">
-	import type { Icon } from '$lib/icons';
+	import type { RichIcon } from '$lib/icons';
 	import { slide } from 'svelte/transition';
 	import { createEventDispatcher } from 'svelte';
 	import nounFetch from '$lib/icons/nounfetch';
@@ -9,7 +9,7 @@
 
 	import Tags from 'svelte-tags-input';
 
-	export let icon: Icon;
+	export let icon: RichIcon;
 	export let existingCollections: string[];
 	export let existingTags: string[];
 	// export let iconFileList;
@@ -34,11 +34,11 @@
 			return;
 		}
 		// Make the call to TNP
-		icon = await nounFetch(icon, $nounProjectAuth);
+		icon = await nounFetch(icon.file, $nounProjectAuth);
 		// We're Done! Cancel the loading and mark as complete
 		loading = false;
 		clearInterval(timer);
-		dispatch('changed');
+		dispatch('changed', icon);
 	};
 </script>
 

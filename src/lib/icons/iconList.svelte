@@ -2,43 +2,14 @@
 	import { base, assets } from '$app/paths';
 	import { flip } from 'svelte/animate';
 	import { createEventDispatcher } from 'svelte';
-	import type { Icon } from '$lib/icons';
+	import type { Icon, RichCategory, RichIcon } from '$lib/icons';
 	import { getIconUrl } from '$lib/icons';
 	import { dndzone, TRIGGERS } from 'svelte-dnd-action';
 	import { chosenIcon } from '../../store';
 
 	const dispatch = createEventDispatcher();
-
-	export let icons: Icon[];
-
-	// Handle edge cases where the icons don't actually exist (yet) or are missing links
-	export let newIcons: boolean | string[] = false;
-	export let deletedIcons: boolean | string[] = false;
-	let overridenStates: { [id: string]: { new?: boolean; deleted?: boolean } } = {};
-
-	$: iconStates = icons.reduce((acc, i) => {
-		let newIcon, deletedIcon;
-		if (Array.isArray(newIcons)) {
-			newIcon = newIcons.includes(i.id);
-		} else {
-			newIcon = newIcons;
-		}
-		if (Array.isArray(deletedIcons)) {
-			deletedIcon = deletedIcons.includes(i.id);
-		} else {
-			deletedIcon = deletedIcons;
-		}
-		acc[i.id] = {
-			new: newIcon,
-			deleted: deletedIcon
-		};
-		const override = overridenStates[i.id];
-		if (override) {
-			if (override.deleted !== undefined) acc[i.id].deleted = override.deleted;
-			if (override.new !== undefined) acc[i.id].new = override.new;
-		}
-		return acc;
-	}, {} as { [id: string]: { new: boolean; deleted: boolean } });
+	export let category: RichCategory;
+	let icons = category.icons;
 
 	// Handle movement of Drag&Drop icons, animation
 	const flipDurationMs = 300;
@@ -50,10 +21,10 @@
 			e.type == 'finalize' &&
 			e.detail.items.map((i) => i.id).join(',') != iconsBeforeDrag.map((i) => i.id).join(',')
 		) {
-			dispatch('edit', icons);
+			dispatch('edit', e.detail.items);
 			iconsBeforeDrag = icons.slice();
 		}
-		icons = e.detail.items as Icon[];
+		icons = e.detail.items as RichIcon[];
 	};
 
 	$: iconStateTest = (() => {
@@ -62,21 +33,16 @@
 		return icon;
 	})();
 
-	const removeIcon = (i: number | boolean = false, id: string | boolean = false) => {
-		if (id) {
-			icons = icons.filter((e, idx) => id !== e.id);
-		} else {
-			icons = icons.filter((e, idx) => i !== idx);
-		}
+	const removeIcon = (icon: RichIcon) => {
+		category.removeIcon(icon);
 		dispatch('edit', icons);
 	};
 
-	const markMissing = (e: any, icon: Icon) => {
+	const markMissing = (e: any, icon: RichIcon) => {
 		e.target.src = `${base}/missing-icon.svg`;
-		overridenStates[icon.id] = { deleted: true };
 	};
 
-	const makeIcon = (icon: Icon) => {
+	const makeIcon = (icon: RichIcon) => {
 		// Emit event telling the editor that this icon should be added to the meta
 		dispatch('addIcon', icon);
 	};
@@ -90,9 +56,11 @@
 		on:finalize={handleSort}
 	>
 		{#each icons as icon, i (icon.id)}
+			<!-- svelte-ignore a11y-click-events-have-key-events -->
+			<!-- svelte-ignore a11y-no-static-element-interactions -->
 			<div
 				class="icon"
-				class:deleted={iconStates[icon.id]?.deleted}
+				class:deleted={false}
 				class:editing={$chosenIcon == icon.id}
 				animate:flip={{ duration: flipDurationMs }}
 				on:click={(e) => ($chosenIcon = $chosenIcon == icon.id ? null : icon.id)}
@@ -100,7 +68,7 @@
 			>
 				{#if $chosenIcon == icon.id}
 					<div class="editTools">
-						{#if iconStates[icon.id]?.new}
+						<!-- {#if iconStates[icon.id]?.new}
 							<div
 								role="button"
 								class="clone details-btn"
@@ -109,11 +77,16 @@
 							>
 								Add
 							</div>
-						{:else}
-							<div role="button" class="delete details-btn" on:click={(_) => removeIcon(i)}>
-								Delete
-							</div>
-						{/if}
+						{:else} -->
+						<div
+							role="button"
+							class="delete details-btn"
+							on:click={(_) => removeIcon(icon)}
+							tabindex="0"
+						>
+							Delete
+						</div>
+						<!-- {/if} -->
 					</div>
 					<!-- <div
 						class="details"
@@ -127,12 +100,9 @@
 						</p>
 					</div> -->
 				{/if}
-				<img
-					title={icon.url}
-					src={getIconUrl(icon)}
-					alt={icon.title}
-					on:error={(e) => markMissing(e, icon)}
-				/>
+				{#await getIconUrl(icon) then src}
+					<img title={icon.url} {src} alt={icon.title} on:error={(e) => markMissing(e, icon)} />
+				{/await}
 			</div>
 		{/each}
 	</div>
