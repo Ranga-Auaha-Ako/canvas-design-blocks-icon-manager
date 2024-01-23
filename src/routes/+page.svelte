@@ -227,9 +227,10 @@
 {/if}
 {#if loading}
 	<button
+		class="bg-black text-white rounded shadow p-3"
 		on:click={() => {
 			loadData();
-		}}>Begin loading</button
+		}}>Choose Folder</button
 	>
 {:else if !iconData || iconData.length === 0}
 	<p
