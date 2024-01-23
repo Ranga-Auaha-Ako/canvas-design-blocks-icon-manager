@@ -95,6 +95,7 @@
 		iconData[$chosenCategory].addIcon(icon);
 		// Reload diffs
 		// buildDiffs();
+		refresh();
 		// needSave = true;
 	};
 
@@ -103,21 +104,23 @@
 		// Get icons in folder
 		let icons: RichFile[] = [];
 		for await (const entry of getFilesRecursively(folder)) icons.push(entry);
-		const richIcons = icons.map((i) => {
-			return {
-				id: nanoid(),
-				ligature: i.name.replace(/\.svg$/, ''),
-				name: i.name.replace(/\.svg$/, ''),
-				url: i.name,
-				width: 48,
-				height: 48,
-				tnp_id: '',
-				tags: [],
-				term: '',
-				collections: [],
-				file: i
-			} as RichIcon;
-		});
+		const richIcons = icons
+			.filter((i) => i.name.endsWith('.svg'))
+			.map((i) => {
+				return {
+					id: nanoid(),
+					ligature: i.name.replace(/\.svg$/, ''),
+					name: i.name.replace(/\.svg$/, ''),
+					url: i.name,
+					width: 48,
+					height: 48,
+					tnp_id: '',
+					tags: [],
+					term: '',
+					collections: [],
+					file: i
+				} as RichIcon;
+			});
 
 		// Create meta file
 		const metaFile = await folder.getFileHandle('meta.json', { create: true }).then((file) => {
@@ -136,14 +139,14 @@
 			visible: true
 		});
 
-		category.save();
-
 		// Add category to meta
-		iconData.push(category);
-		$chosenCategory = iconData.length;
+		fs.newCategories.push(category);
 		// Reload diffs
 		// buildDiffs();
-		needSave = true;
+		await category.save();
+		await refresh();
+		const found = iconData.findIndex((c) => c.folderHandler === folder);
+		if (found) $chosenCategory = found;
 	};
 
 	let needSave = false;
@@ -176,10 +179,29 @@
 		console.log(fs, iconData, newCategories);
 	};
 
+	let saving = false;
 	const saveData = async () => {
+		saving = true;
 		await fs.save();
+		await loadData(fs.folderHandle);
 		needSave = false;
+		saving = false;
 	};
+
+	async function refresh() {
+		iconData = await fs.categories;
+		await fs.recheckFoundCategories();
+		newCategories = fs.foundCategories;
+		loading = false;
+		// Parse tag data
+		updateTagData();
+
+		// Fix chosen category if out of bounds
+		if ($chosenCategory > iconData.length - 1) {
+			chosenCategory.set(0);
+		}
+		console.log(fs, iconData, newCategories);
+	}
 </script>
 
 <h1 class="text-3xl font-bold">Canvas Icons Editor</h1>
@@ -190,14 +212,17 @@
 {#if needSave}
 	<div
 		transition:slide|global
-		class="my-3 rounded shadow bg-yellow-100 p-5 border-dashed border-2 border-yellow-400"
+		class="my-3 rounded shadow bg-yellow-100 p-5 border-dashed border-2 border-yellow-400 transition"
+		class:animate-pulse={saving}
+		class:pointer-events-none={saving}
 	>
 		<p class="m-0 text-yellow-800">
 			⚠️ You have unsaved changes. Please save or discard them before proceeding.
 			<span class="btn-group inline float-right">
-				<button class="btn" on:click={saveData}>Save</button>
+				<button class="btn" on:click={saveData} class:opacity-50={saving}>Save</button>
 				<button
 					class="btn"
+					class:opacity-50={saving}
 					on:click={() => {
 						if (confirm('Are you sure you want to discard your changes?')) {
 							loadData(fs.folderHandle);
@@ -356,6 +381,7 @@
 						on:deleteIcon={(e) => {
 							iconData[$chosenCategory].removeIcon(e.detail.id);
 							// buildDiffs();
+							refresh();
 							// needSave = true;
 						}}
 					/>

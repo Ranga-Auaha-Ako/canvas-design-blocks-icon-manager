@@ -49,7 +49,13 @@ export class IconFilesystem {
 		throw new Error('No permission');
 	};
 	public files;
-	public categories;
+	private _categories;
+	get categories() {
+		return this._categories.then((cats) => {
+			return [...cats, ...this.newCategories];
+		});
+	}
+	public newCategories: RichCategory[] = [];
 	public folders: Promise<FileSystemDirectoryHandle[]>;
 	public foundCategories: foundCategory[] = [];
 	constructor(public folderHandle: FileSystemDirectoryHandle) {
@@ -63,7 +69,7 @@ export class IconFilesystem {
 			}
 			resolve(folders);
 		});
-		this.categories = new Promise<RichCategory[]>(async (resolve, reject) => {
+		this._categories = new Promise<RichCategory[]>(async (resolve, reject) => {
 			const categories: RichCategory[] = [];
 			let allFiles: RichFile[] = [];
 			for await (const file of this.files) {
@@ -131,10 +137,17 @@ export class IconFilesystem {
 			resolve(categories);
 		});
 	}
-	save = async () => {
-		const categories = await this.categories;
+	async recheckFoundCategories() {
+		// Rebuild foundCategories to remove imported categories
+		const allCats = await this._categories;
+		this.foundCategories = this.foundCategories.filter((cat) => {
+			return allCats.find((c) => c.folderHandler === cat.folder);
+		});
+	}
+	async save() {
+		const categories = await this._categories;
 		for (const cat of categories) {
 			await cat.save();
 		}
-	};
+	}
 }
