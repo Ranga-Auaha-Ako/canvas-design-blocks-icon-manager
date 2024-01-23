@@ -2,14 +2,20 @@
 	import { base, assets } from '$app/paths';
 	import { flip } from 'svelte/animate';
 	import { createEventDispatcher } from 'svelte';
-	import type { Icon, RichCategory, RichIcon } from '$lib/icons';
+	import type { Icon, RichCategory, RichFile, RichIcon } from '$lib/icons';
 	import { getIconUrl } from '$lib/icons';
 	import { dndzone, TRIGGERS } from 'svelte-dnd-action';
 	import { chosenIcon } from '../../store';
 
 	const dispatch = createEventDispatcher();
-	export let category: RichCategory;
-	let icons = category.icons;
+	export let category: { icons: RichIcon[] } | RichCategory;
+	let icons = catisRichCategory(category) ? [...category.icons, ...category.added] : category.icons;
+
+	function catisRichCategory(
+		category: { icons: { file: RichFile }[] } | RichCategory
+	): category is RichCategory {
+		return 'name' in category;
+	}
 
 	// Handle movement of Drag&Drop icons, animation
 	const flipDurationMs = 300;
@@ -27,13 +33,8 @@
 		icons = e.detail.items as RichIcon[];
 	};
 
-	$: iconStateTest = (() => {
-		const icon = icons.find((icn) => icn.id === $chosenIcon);
-		console.log(icon);
-		return icon;
-	})();
-
 	const removeIcon = (icon: RichIcon) => {
+		if (!catisRichCategory(category)) return;
 		category.removeIcon(icon);
 		dispatch('edit', icons);
 	};
@@ -51,7 +52,7 @@
 <div class="iconList">
 	<div
 		class="icons grid grid-cols-4 sm:grid-cols-8"
-		use:dndzone={{ items: icons, flipDurationMs }}
+		use:dndzone={{ items: icons, flipDurationMs, dragDisabled: catisRichCategory(category) }}
 		on:consider={handleSort}
 		on:finalize={handleSort}
 	>
@@ -68,25 +69,20 @@
 			>
 				{#if $chosenIcon == icon.id}
 					<div class="editTools">
-						<!-- {#if iconStates[icon.id]?.new}
+						{#if !catisRichCategory(category)}
+							<div class="clone details-btn cursor-default" title="Add icon  to list">
+								Drag to Add
+							</div>
+						{:else}
 							<div
 								role="button"
-								class="clone details-btn"
-								on:click={(_) => makeIcon(icon)}
-								title="Add icon  to list"
+								class="delete details-btn"
+								on:click={(_) => removeIcon(icon)}
+								tabindex="0"
 							>
-								Add
+								Delete
 							</div>
-						{:else} -->
-						<div
-							role="button"
-							class="delete details-btn"
-							on:click={(_) => removeIcon(icon)}
-							tabindex="0"
-						>
-							Delete
-						</div>
-						<!-- {/if} -->
+						{/if}
 					</div>
 					<!-- <div
 						class="details"

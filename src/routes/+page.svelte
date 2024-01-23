@@ -193,6 +193,7 @@
 		await fs.recheckFoundCategories();
 		newCategories = fs.foundCategories;
 		loading = false;
+		$chosenCategory = $chosenCategory;
 		// Parse tag data
 		updateTagData();
 
@@ -285,7 +286,7 @@
 	<div class="flex">
 		<div class="icon-lists flex-grow-0 w-6/12 pr-5">
 			<div class="changes">
-				{#if iconData[$chosenCategory].added.length}
+				{#if iconData[$chosenCategory].newIcons.length}
 					<h2 class="text-xl font-bold mt-3">
 						New Icons found:
 						<!-- svelte-ignore missing-declaration -->
@@ -327,11 +328,21 @@
 							Add All + Load TNP
 						</button>
 					</h2>
-					<!-- <IconList
-						icons={iconData[$chosenCategory]?.newIcons.map((f) => ({ file: f }))}
+					<IconList
+						category={{
+							icons: iconData[$chosenCategory]?.newIcons.map((f) => ({
+								file: f,
+								id: nanoid(),
+								ligature: f.name.replace(/\.svg$/, ''),
+								name: f.name.replace(/\.svg$/, ''),
+								url: f.name,
+								width: 48,
+								height: 48,
+								tnp_id: ''
+							}))
+						}}
 						on:addIcon={addIcon}
-						newIcons
-					/> -->
+					/>
 				{/if}
 				<!-- {#if iconDiffs[chosenCategory].removedIcons.length}
 						<h2 class="text-xl font-bold mt-3">Deleted Icons found:</h2>
