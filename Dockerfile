@@ -1,6 +1,5 @@
 FROM node:20 AS build
 RUN apt install git
-RUN yarn set version stable
 WORKDIR /app
 COPY ["package.json", "package-lock.json*", "npm-shrinkwrap.json*", "yarn.lock", ".yarnrc.yml","./"]
 RUN yarn install
