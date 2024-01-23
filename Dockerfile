@@ -1,7 +1,7 @@
 FROM node:20 AS build
 RUN apt install git
 WORKDIR /usr/src/app
-COPY ["package.json", "package-lock.json*", "npm-shrinkwrap.json*", "yarn.lock", ".yarnrc.yml","./"]
+COPY ["package.json", "yarn.lock", ".yarnrc.yml","./"]
 RUN yarn install
 COPY . .
 RUN yarn build
